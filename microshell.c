@@ -2,6 +2,13 @@
 
 /** ONLY DEBUG **/
 
+/*
+** NOTES:
+** - Ne pas hésiter a faire pour fast debug et utiliser -g3 -fsanitize a chaque
+** problemes
+**
+*/
+
 void    ft_show_all(t_all *all)
 {
     int i;
@@ -76,6 +83,16 @@ void	cd (char **params)
 
 /** MAINS **/
 
+/*
+** NOTES:
+** - i et size a 1 pour pas proc le nom du prog
+** - Ne pas oublier de mettre NULL en end a chaque fin (et au bon endroit)
+** - Possibilité de copier coller la boucle et les if entre les parties 
+** - Ne pas oublier all->argc = size
+** - Ne pas oublier all->venv = env
+**
+*/
+
 int		init_all(int argc, char **argv, char **env, t_all *all)
 {
 	int		i;
@@ -136,6 +153,20 @@ strcmp(argv[i + 1], ";") && ++i)
 	all->venv = env;
 	return (0);
 }
+
+/*
+** NOTES:
+** - mettre i a 1 pour pas proc sur le nom du prog
+** - Pour les pipes : toujours mettre a NULL si pas de prev/next, pour pouvoir check
+** - Dans le fork
+** 		Si prev dup2 en 0 (in) (on remplace l'in si le precedent est un pipe)
+**		Si next dup2 en 1 (out) (on remplace l'out si le prochain est un pipe)
+** - Apres
+** 		close tout une fois fini donc prev
+** - Ne pas oublier de free les pipes
+** - cd ne doit pas se lancer en pipe
+**
+*/
 
 int    ft_pipe(t_all *all)
 {    
@@ -204,7 +235,7 @@ int main(int argc, char **argv, char **env)
 
     if (init_all(argc, argv, env, &all))
 		return (0);
-	ft_show_all(&all);
+	//ft_show_all(&all);
     ft_pipe(&all);
     return (0);
 }
