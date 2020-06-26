@@ -39,6 +39,7 @@ int		ft_strlen(char *str)
 {
 	int i;
 
+	i = 0;
 	while (*str++)
 		i++;
 	return (i);
@@ -48,60 +49,6 @@ int		write_error(char *msg)
 {
 	write(STDERR_FILENO, msg, ft_strlen(msg));
 	return (0);
-}
-
-char	*ft_strcpy(char	*str)
-{
-	int		size;
-	char	*ptr;
-
-	size = 0;
-	ptr = str;
-	while (*ptr++)
-		size++;
-	if (!(ptr = malloc(sizeof(char) * (size + 1))))
-		return (NULL);
-	ptr[size] = '\0';
-	size = -1;
-	while (str[++size])
-		ptr[size] = str[size];	
-	return (ptr);
-}
-
-int		ft_isspace(char c)
-{
-	if (c == '\t' || c == '\n' || c =='\v' || c == '\f' ||
-c == '\r' || c == ' ')
-		return (1);
-	return (0);
-}
-
-int		size_word(char *str)
-{
-	int	i;
-
-	i = 0;
-	while (*str && !ft_isspace(*str++))
-		i++;
-	return (i);
-
-}
-
-int		count_words(char *str)
-{
-	int	i;
-
-	i = 0;
-	while (*str)
-	{
-		while (ft_isspace(*str))
-			str++;
-		if (*str && !ft_isspace(*str))
-			i++;
-		while (*str && !ft_isspace(*str))
-			str++;
-	}
-	return (i);
 }
 
 void	dup_close_pipe(int	*pipe, int nb)
@@ -118,97 +65,76 @@ void	close_pipe(int	*pipe)
 }
 
 void	cd (char **params)
-{
+{	
 	if (chdir(params[1]))
 	{
 		write_error("error: cd: cannot change directory to ");
-		write_error(params[0]);
+		write_error(params[1]);
 		write_error("\n");
 	}
 }
 
 /** MAINS **/
 
-void    init_all(int argc, char **argv, char **env, t_all *all)
+int		init_all(int argc, char **argv, char **env, t_all *all)
 {
-	int tmp;
-	int tmp2;
-    int i;
-	int j;
-	int k;
-	int l;
-	int m;
-	int size;
+	int		i;
+	int		j;
+	int		k;
+	int		tmp;
+	int		size;
 
-    i = 1;
+	i = 1;
 	size = 1;
-    all->argc = argc;
-	while (argv[i] && !strcmp(argv[i], ";"))
-	{
-		size++;
-		i++;
-	}
 	while (argv[i])
 	{
-		if (strcmp(argv[i], "|") && strcmp(argv[i], ";"))
-			size++;
-		while (argv[i] && strcmp(argv[i], "|") && strcmp(argv[i], ";"))
-			i++;		
-		while (argv[i] && (!strcmp(argv[i], "|") || !strcmp(argv[i], ";")))
-		{
-			size++;
+		if ((!strcmp(argv[i], "|") || !strcmp(argv[i], ";")) && ++size)
 			i++;
+		else if (++size)
+		{
+			while (argv[i] && strcmp(argv[i], "|") && strcmp(argv[i], ";"))
+				i++;	
 		}
 	}
 	if (!(all->argv = malloc(sizeof(char **) * (size + 1))))
-		return ;
+		return (1);
 	all->argv[size] = NULL;
 	all->argc = size;
-	if (!(all->argv[0] = malloc(sizeof(char *) * (1 + 1))))
-		return ;
-	all->argv[0][0] = ft_strcpy(argv[0]);
+	if (!(all->argv[0] = malloc(sizeof(char *) * 2)))
+		return (1);
+	all->argv[0][0] = argv[0];
 	all->argv[0][1] = NULL;
 	i = 1;
-	m = 1;
+	j = 1;
 	while (argv[i])
-	{		
-		tmp2 = i;
+	{
 		size = 0;
-		if (strcmp(argv[i], "|") && strcmp(argv[i], ";"))
+		if ((!strcmp(argv[i], "|") || !strcmp(argv[i], ";")))
 		{
-			while (argv[i] && !strcmp(argv[i], ";"))
-				i++;
-			while (argv[i] && strcmp(argv[i], "|") && strcmp(argv[i], ";"))
-				size += count_words(argv[i++]);
+			if (!(all->argv[j] = malloc(sizeof(char *) * 2)))
+				return (1);
+			all->argv[j][0] = argv[i];
+			all->argv[j++][1] = NULL;
 		}
 		else
-			size = 1;
-		if (!(all->argv[m] = malloc(sizeof(char *) * (size + 1))))
-			return ;
-		tmp = i;
-		i = tmp2;
-		j = 0;
-		k = 0;
-		while (argv[i][j] || (++i && !(j = 0) && i < tmp))
 		{
-			while (ft_isspace(argv[i][j]))
-				j++;
-			if (argv[i][j] && !ft_isspace(argv[i][j]))
-			{
-				if (!(all->argv[m][k] = malloc (sizeof(char) *
-(size_word(&argv[i][j]) + 1))))
-					return ;
-				l = 0;
-				while (argv[i][j] && !ft_isspace(argv[i][j]))
-					all->argv[m][k][l++] = argv[i][j++]; 
-				all->argv[m][k][l] = '\0';
-				k++;
-			}
+			size++;
+			tmp = i;
+			while (argv[i] && argv[i + 1] && strcmp(argv[i + 1], "|") &&
+strcmp(argv[i + 1], ";") && ++i)
+				size++;
+			if (!(all->argv[j] = malloc(sizeof(char *) * (size + 1))))
+				return (1);
+			k = 0;
+			printf("argv[tmp] %s\n", argv[tmp]);
+			while (tmp <= i)
+				all->argv[j][k++] = argv[tmp++];
+			all->argv[j++][k] = NULL;
 		}
-		all->argv[m][k] = NULL;
-		m++;
+		i++;
 	}
-    all->venv = env;
+	all->venv = env;
+	return (0);
 }
 
 int    ft_pipe(t_all *all)
@@ -216,7 +142,6 @@ int    ft_pipe(t_all *all)
 	int i;
 	int *prev_pipe;
 	int *next_pipe;
-
 
 	prev_pipe = NULL;
     i = 1;
@@ -237,10 +162,7 @@ int    ft_pipe(t_all *all)
 (!all->argv[i][1] || all->argv[i][2]))
 				return (write_error("error: cd: bad arguments\n"));
 			else if (!strcmp(all->argv[i][0], "cd"))
-			{
-				printf("cd\n");
 				cd(all->argv[i]);
-			}
 			else if (!fork())
 			{
 				if (prev_pipe)
