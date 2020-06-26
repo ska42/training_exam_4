@@ -48,7 +48,7 @@ int		ft_strlen(char *str)
 int		write_error(char *msg)
 {
 	write(STDERR_FILENO, msg, ft_strlen(msg));
-	return (0);
+	return (1);
 }
 
 void	dup_close_pipe(int	*pipe, int nb)
@@ -97,11 +97,12 @@ int		init_all(int argc, char **argv, char **env, t_all *all)
 		}
 	}
 	if (!(all->argv = malloc(sizeof(char **) * (size + 1))))
-		return (1);
+		return (write_error("error: fatal\n"));
 	all->argv[size] = NULL;
 	all->argc = size;
+///////////////////////////////////////////
 	if (!(all->argv[0] = malloc(sizeof(char *) * 2)))
-		return (1);
+		return (write_error("error: fatal\n"));
 	all->argv[0][0] = argv[0];
 	all->argv[0][1] = NULL;
 	i = 1;
@@ -112,7 +113,7 @@ int		init_all(int argc, char **argv, char **env, t_all *all)
 		if ((!strcmp(argv[i], "|") || !strcmp(argv[i], ";")))
 		{
 			if (!(all->argv[j] = malloc(sizeof(char *) * 2)))
-				return (1);
+				return (write_error("error: fatal\n"));
 			all->argv[j][0] = argv[i];
 			all->argv[j++][1] = NULL;
 		}
@@ -124,9 +125,8 @@ int		init_all(int argc, char **argv, char **env, t_all *all)
 strcmp(argv[i + 1], ";") && ++i)
 				size++;
 			if (!(all->argv[j] = malloc(sizeof(char *) * (size + 1))))
-				return (1);
+				return (write_error("error: fatal\n"));
 			k = 0;
-			printf("argv[tmp] %s\n", argv[tmp]);
 			while (tmp <= i)
 				all->argv[j][k++] = argv[tmp++];
 			all->argv[j++][k] = NULL;
@@ -151,7 +151,7 @@ int    ft_pipe(t_all *all)
 !strcmp(all->argv[i + 1][0], "|") && !all->argv[i + 1][1])
 		{
 			if (!(next_pipe = malloc(sizeof(int) * 2)))
-				return (1);
+				return (write_error("error: fatal\n"));
 			pipe(next_pipe);
 		}
 		else
@@ -163,26 +163,38 @@ int    ft_pipe(t_all *all)
 				return (write_error("error: cd: bad arguments\n"));
 			else if (!strcmp(all->argv[i][0], "cd"))
 				cd(all->argv[i]);
-			else if (!fork())
+			else
 			{
+				if (!fork())
+				{
+						if (prev_pipe)
+								dup_close_pipe(prev_pipe, 0);
+						if (next_pipe)
+								dup_close_pipe(next_pipe, 1);
+						if (execve(all->argv[i][0], all->argv[i], all->venv))
+						{
+								write_error("error: cannot execute ");
+								write_error(all->argv[i][0]);
+								return (write_error("\n"));
+						}
+						exit(0);
+				}
 				if (prev_pipe)
-					dup_close_pipe(prev_pipe, 0);
-				if (next_pipe)
-					dup_close_pipe(next_pipe, 1);
-    			execve(all->argv[i][0], all->argv[i], all->venv);
-				// TODO: Error
-            	exit(0);
-        	}
-			if (prev_pipe)
-				close_pipe(prev_pipe);
-			wait(NULL);
-			if (prev_pipe)
+					close_pipe(prev_pipe);
+				if (wait(NULL) < 0)
+					return (write_error("error: fatal\n"));
+				if (prev_pipe)
 				free(prev_pipe);
-			prev_pipe = next_pipe;
+				prev_pipe = next_pipe;
+			}
 		}
         i++;
     }
-	free(next_pipe);
+	if (next_pipe)
+	{
+		close_pipe(next_pipe);
+		free(next_pipe);
+	}
 	return (0);
 }
 
@@ -190,7 +202,8 @@ int main(int argc, char **argv, char **env)
 {
 	t_all	all;
 
-    init_all(argc, argv, env, &all);
+    if (init_all(argc, argv, env, &all))
+		return (0);
 	ft_show_all(&all);
     ft_pipe(&all);
     return (0);
